@@ -19,13 +19,12 @@
 #include <string.h>
 #include <stdlib.h>
 
-#include "config/config.h"
+
 #include "gfx/di.h"
 #include "gfx/gfx.h"
 #include "gfx/logos.h"
 #include "gfx/tui.h"
-#include "hos/hos.h"
-#include "ianos/ianos.h"
+
 #include "libs/compr/blz.h"
 #include "libs/fatfs/ff.h"
 #include "mem/heap.h"
@@ -42,9 +41,6 @@
 #include "utils/list.h"
 #include "utils/util.h"
 
-#include "frontend/fe_emmc_tools.h"
-#include "frontend/fe_tools.h"
-#include "frontend/fe_info.h"
 
 //TODO: ugly.
 gfx_ctxt_t gfx_ctxt;
@@ -62,110 +58,10 @@ sdmmc_storage_t sd_storage;
 FATFS sd_fs;
 static bool sd_mounted;
 
-hekate_config h_cfg;
-
-bool sd_mount()
-{
-	if (sd_mounted)
-		return true;
-
-	if (!sdmmc_storage_init_sd(&sd_storage, &sd_sdmmc, SDMMC_1, SDMMC_BUS_WIDTH_4, 11))
-	{
-		EPRINTF("Failed to init SD card.\nMake sure that it is inserted.\nOr that SD reader is properly seated!");
-	}
-	else
-	{
-		int res = 0;
-		res = f_mount(&sd_fs, "", 1);
-		if (res == FR_OK)
-		{
-			sd_mounted = 1;
-			return true;
-		}
-		else
-		{
-			EPRINTFARGS("Failed to mount SD card (FatFS Error %d).\nMake sure that a FAT partition exists..", res);
-		}
-	}
-
-	return false;
-}
-
-void sd_unmount()
-{
-	if (sd_mounted)
-	{
-		f_mount(NULL, "", 1);
-		sdmmc_storage_end(&sd_storage);
-		sd_mounted = false;
-	}
-}
-
-void *sd_file_read(char *path)
-{
-	FIL fp;
-	if (f_open(&fp, path, FA_READ) != FR_OK)
-		return NULL;
-
-	u32 size = f_size(&fp);
-	void *buf = malloc(size);
-
-	u8 *ptr = buf;
-	while (size > 0)
-	{
-		u32 rsize = MIN(size, 512 * 512);
-		if (f_read(&fp, ptr, rsize, NULL) != FR_OK)
-		{
-			free(buf);
-			return NULL;
-		}
-
-		ptr += rsize;
-		size -= rsize;
-	}
-
-	f_close(&fp);
-
-	return buf;
-}
-
-int sd_save_to_file(void *buf, u32 size, const char *filename)
-{
-	FIL fp;
-	u32 res = 0;
-	res = f_open(&fp, filename, FA_CREATE_ALWAYS | FA_WRITE);
-	if (res)
-	{
-		EPRINTFARGS("Error (%d) creating file\n%s.\n", res, filename);
-		return 1;
-	}
-
-	f_sync(&fp);
-	f_write(&fp, buf, size, NULL);
-	f_close(&fp);
-
-	return 0;
-}
-
-
-void panic(u32 val)
-{
-	// Set panic code.
-	PMC(APBDEV_PMC_SCRATCH200) = val;
-	//PMC(APBDEV_PMC_CRYPTO_OP) = 1; // Disable SE.
-	TMR(TIMER_WDT4_UNLOCK_PATTERN) = TIMER_MAGIC_PTRN;
-	TMR(TIMER_TMR9_TMR_PTV) = TIMER_EN | TIMER_PER_EN;
-	TMR(TIMER_WDT4_CONFIG)  = TIMER_SRC(9) | TIMER_PER(1) | TIMER_PMCRESET_EN;
-	TMR(TIMER_WDT4_COMMAND) = TIMER_START_CNT;
-	while (1)
-		;
-}
-
 
 
 void power_off()
 {
-	sd_unmount();
 	//TODO: we should probably make sure all regulators are powered off properly.
 	i2c_send_byte(I2C_5, MAX77620_I2C_ADDR, MAX77620_REG_ONOFFCNFG1, MAX77620_ONOFFCNFG1_PWR_OFF);
 }
@@ -208,8 +104,6 @@ void reloc_patcher(u32 payload_size)
 
 
 
-
-
 extern void pivot_stack(u32 stack_top);
 
 void ipl_main()
@@ -222,9 +116,6 @@ void ipl_main()
 	//Tegra/Horizon configuration goes to 0x80000000+, package2 goes to 0xA9800000, we place our heap in between.
 	heap_init(0x90020000);
 
-
-	// Set bootloader's default configuration.
-	set_default_configuration();
 
 	// Save sdram lp0 config.
 	//ianos_loader(true, "bootloader/sys/libsys_lp0.bso", DRAM_LIB, (void *)sdram_get_params_patched());
@@ -241,7 +132,6 @@ void ipl_main()
 
 	gfx_con.mute = true;
 
-	//sd_unmount();
 	gfx_clear_grey(&gfx_ctxt, 0x1B);
 	u8 *BOOTLOGO = (void *)malloc(0x4000);
 	blz_uncompress_srcdest(BOOTLOGO_BLZ, SZ_BOOTLOGO_BLZ, BOOTLOGO, SZ_BOOTLOGO);
