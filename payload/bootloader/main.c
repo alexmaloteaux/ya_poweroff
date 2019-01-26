@@ -23,7 +23,7 @@
 #include "gfx/di.h"
 #include "gfx/gfx.h"
 #include "gfx/logos.h"
-#include "gfx/tui.h"
+
 
 #include "libs/compr/blz.h"
 #include "libs/fatfs/ff.h"
@@ -35,7 +35,6 @@
 #include "soc/pmc.h"
 #include "soc/t210.h"
 #include "soc/uart.h"
-#include "storage/sdmmc.h"
 #include "utils/btn.h"
 #include "utils/dirlist.h"
 #include "utils/list.h"
@@ -52,11 +51,6 @@ gfx_con_t gfx_con;
 #define WPRINTF(text) gfx_printf(&gfx_con, "%k"text"%k\n", 0xFFFFDD00, 0xFFCCCCCC)
 #define WPRINTFARGS(text, args...) gfx_printf(&gfx_con, "%k"text"%k\n", 0xFFFFDD00, args, 0xFFCCCCCC)
 
-//TODO: ugly.
-sdmmc_t sd_sdmmc;
-sdmmc_storage_t sd_storage;
-FATFS sd_fs;
-static bool sd_mounted;
 
 
 
