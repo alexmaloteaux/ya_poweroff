@@ -1,0 +1,8 @@
+nro/build/
+nro/poweroff.elf
+nro/poweroff.nacp
+nro/poweroff.nro
+nro/source/payload.h
+payload/build/
+payload/output/
+poweroff.nro
